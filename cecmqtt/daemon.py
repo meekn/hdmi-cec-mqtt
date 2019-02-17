@@ -57,8 +57,8 @@ class CECMQTTDaemon(object):
             'standby': device.standby,
         }
 
-        def on_message(self, client, userdata, msg):
-            logger.info('Received message for {}'.format(self.target.osd_string))
+        def on_message(client, userdata, msg):
+            logger.info('Received message for {}'.format(device.osd_string))
             payload_string = msg.payload.decode('utf-8')
             logger.info(payload_string)
             parsed_payload = json.loads(payload_string)
@@ -118,17 +118,17 @@ class CECMQTTDaemon(object):
 
 
 class CECBeebotteDaemon(CECMQTTDaemon):
-    MQTT_BROKER = 'mqtt.beebotte.com'
-    MQTT_PORT = 8883
-    MQTT_TLS_CERT_FILEPATH = 'data/mqtt.beebotte.com.pem'
+    BROKER = 'mqtt.beebotte.com'
+    PORT = 8883
+    TLS_CERT_FILEPATH = 'data/mqtt.beebotte.com.pem'
 
     def __init__(self, channel, token):
         mqtt_username_and_password = 'token:{}'.format(token)
 
         super().__init__(
-            self.MQTT_BROKER,
-            self.MQTT_PORT,
+            self.BROKER,
+            self.PORT,
             mqtt_username_and_password,
             channel,
-            tls_cert_filename=pkg_resources.resource_filename('cecmqtt', self.MQTT_TLS_CERT_FILEPATH),
+            tls_cert_filename=pkg_resources.resource_filename('cecmqtt', self.TLS_CERT_FILEPATH),
         )
