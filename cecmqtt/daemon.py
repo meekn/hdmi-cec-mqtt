@@ -13,37 +13,6 @@ from bidict import bidict
 logger = getLogger(__name__)
 
 
-class DeviceController(object):
-    def __init__(self, device):
-        self.target = device
-        self._action_by_name = {
-            'power_on': self.target.power_on,
-            'standby': self.target.standby,
-        }
-
-    def on_message(self, client, userdata, msg):
-        logger.info('Received message for {}'.format(self.target.osd_string))
-        payload_string = msg.payload.decode('utf-8')
-        logger.info(payload_string)
-        parsed_payload = json.loads(payload_string)
-
-        data = parsed_payload.get('data', [])
-
-        try:
-            action_name = data['action']
-        except TypeError as e:
-            logger.warning(e)
-            return
-
-        try:
-            action = self._action_by_name[action_name]
-        except KeyError as e:
-            logger.warning('Unsupported action specified ("{}")'.format(action_name))
-            return
-
-        action()
-
-
 class CECMQTTDaemon(object):
     LOGICAL_ADDRESS_BY_NAME = bidict({
         'AUDIOSYSTEM': cec.CECDEVICE_AUDIOSYSTEM,
@@ -78,11 +47,42 @@ class CECMQTTDaemon(object):
         logger.info('Subscribe topic "{}"'.format(subscription_target_topic))
         client.subscribe(subscription_target_topic)
 
-    def _create_topic_fullname(self, subtopic):
+    def _create_device_topic_name(self, subtopic):
         return '{}/{}'.format(self._bus_topic_name, subtopic)
 
-    def run(self, mapping_definition=None):
+    def _create_message_handler(logical_address):
+        device = cec.Device(logical_address)
+        action_by_name = {
+            'power_on': device.power_on,
+            'standby': device.standby,
+        }
 
+        def on_message(self, client, userdata, msg):
+            logger.info('Received message for {}'.format(self.target.osd_string))
+            payload_string = msg.payload.decode('utf-8')
+            logger.info(payload_string)
+            parsed_payload = json.loads(payload_string)
+
+            data = parsed_payload.get('data', [])
+
+            try:
+                action_name = data['action']
+            except TypeError as e:
+                logger.warning(e)
+                return
+
+            try:
+                action = action_by_name[action_name]
+            except KeyError as e:
+                logger.warning('Unsupported action specified ("{}")'.format(action_name))
+                return
+
+            action()
+
+        return on_message
+
+
+    def run(self, mapping_definition=None):
         logger.info('Initializing CEC...')
         cec.init()
         logger.info('Done')
@@ -94,30 +94,25 @@ class CECMQTTDaemon(object):
                 device.osd_string)
             )
 
-        topic_fullnames_with_logical_address = (
-            (self._create_topic_fullname(logical_address_name), logical_address)
-            for logical_address_name, logical_address in self.LOGICAL_ADDRESS_BY_NAME.items()
-        )
-
-        topic_fullnames_with_device_controller = (
-            (topic_fullname, DeviceController(cec.Device(logical_address)))
-            for topic_fullname, logical_address in topic_fullnames_with_logical_address
-        )
-
         client = mqtt.Client()
         client.username_pw_set(self._username_and_password)
         client.on_connect = self._on_connect
-        for topic_fullname, device_controller in topic_fullnames_with_device_controller:
-            client.message_callback_add(topic_fullname, device_controller.on_message)
+
+        for logical_address_name, logical_address in self.LOGICAL_ADDRESS_BY_NAME.items():
+            device_topic_name = self._create_device_topic_name(logical_address_name)
+            message_handler = self._create_message_handler(logical_address)
+            client.message_callback_add(device_topic_name, message_handler)
 
         if self._tls_cert_filename:
             client.tls_set(self._tls_cert_filename)
 
+        logger.info('Connecting to MQTT server...')
         try:
             client.connect(self._broker, self._port)
         except RuntimeError as e:
             logger.error(e)
             return
+        logger.info('Done')
 
         client.loop_forever()
 
