@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from logging import getLogger
+from logging import getLogger, INFO
 import json
 import pkg_resources
 
@@ -87,12 +87,15 @@ class CECMQTTDaemon(object):
         cec.init()
         logger.info('Done')
 
-        for logical_address, device in cec.list_devices().items():
-            logger.info('{}\t{}\t{}'.format(
-                logical_address,
-                self.LOGICAL_ADDRESS_BY_NAME.inv[logical_address],
-                device.osd_string)
-            )
+        if logger.isEnabledFor(INFO):
+            logger.info('Listing devices on the bus...')
+            for logical_address, device in cec.list_devices().items():
+                logger.info('{}\t{}\t{}'.format(
+                    logical_address,
+                    self.LOGICAL_ADDRESS_BY_NAME.inv[logical_address],
+                    device.osd_string)
+                )
+            logger.info('Done')
 
         client = mqtt.Client()
         client.username_pw_set(self._username_and_password)
