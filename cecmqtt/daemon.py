@@ -50,7 +50,7 @@ class CECMQTTDaemon(object):
     def _create_device_topic_name(self, subtopic):
         return '{}/{}'.format(self._bus_topic_name, subtopic)
 
-    def _create_message_handler(logical_address):
+    def _create_message_handler(self, logical_address):
         device = cec.Device(logical_address)
         action_by_name = {
             'power_on': device.power_on,
