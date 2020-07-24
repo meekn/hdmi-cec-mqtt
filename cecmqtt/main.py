@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from logging import getLogger, basicConfig, DEBUG
+from logging import basicConfig, DEBUG
 import click
 
 from cecmqtt.daemon import CECBeebotteDaemon

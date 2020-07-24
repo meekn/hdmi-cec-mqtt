@@ -31,14 +31,27 @@ class CECMQTTDaemon(object):
         'TV': cec.CECDEVICE_TV,
     })
 
-    def __init__(self, broker, port, username_and_password, bus_topic_name, tls_cert_filename=None):
+    def __init__(
+            self,
+            broker: str,
+            port: int,
+            username_and_password: str,
+            bus_topic_name: str,
+            tls_cert_filename: str = None
+    ):
         self._broker = broker
         self._port = port
         self._username_and_password = username_and_password
         self._bus_topic_name = bus_topic_name
         self._tls_cert_filename = tls_cert_filename
 
-    def _on_connect(self, client, userdata, flags, rc):
+    def _on_connect(
+            self,
+            client: mqtt.Client,
+            userdata,
+            flags,
+            rc
+    ):
         if rc != 0:
             raise RuntimeError('Cannot connect to MQTT Broker (rc: {})'.format(rc))
 
@@ -73,14 +86,13 @@ class CECMQTTDaemon(object):
 
             try:
                 action = action_by_name[action_name]
-            except KeyError as e:
+            except KeyError:
                 logger.warning('Unsupported action specified ("{}")'.format(action_name))
                 return
 
             action()
 
         return on_message
-
 
     def run(self, mapping_definition=None):
         logger.info('Initializing CEC...')
